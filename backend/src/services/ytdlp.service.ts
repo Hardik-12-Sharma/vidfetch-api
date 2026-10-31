@@ -380,16 +380,29 @@ export class YtDlpService {
       '--socket-timeout', '15',
       '--sleep-requests', '1',
     ];
+
     if (this.o.ffmpegLocation) a.push('--ffmpeg-location', this.o.ffmpegLocation);
     if (this.o.cacheDir) a.push('--cache-dir', this.o.cacheDir);
     if (this.o.cookiesFile) a.push('--cookies', this.o.cookiesFile);
-    else if (this.o.cookiesFromBrowser) a.push('--cookies-from-browser', this.o.cookiesFromBrowser);
+    else if (this.o.cookiesFromBrowser) {
+      a.push('--cookies-from-browser', this.o.cookiesFromBrowser);
+    }
+
     if (platform === 'youtube') {
-      a.push(
-        '--extractor-args',
-        `youtube:skip=translated_subs`
-      );
-    } return a;
+      const supportedClients = ['default', 'tv', 'mweb', 'web_safari'];
+      const requestedClients = (clients || 'default')
+        .split(',')
+        .map((client) => client.trim())
+        .filter((client) => supportedClients.includes(client));
+
+      if (requestedClients.length > 0 && !requestedClients.includes('default')) {
+        a.push('--extractor-args', `youtube:player_client=${requestedClients.join(',')},skip=translated_subs`);
+      } else {
+        a.push('--extractor-args', 'youtube:skip=translated_subs');
+      }
+    }
+
+    return a;
   }
   private throwIfFailed(r: RunResult, _platform: Platform) {
     if (r.spawnFailed) throw new ApiError(500, 'Downloader is not set up on the server (yt-dlp not found).');
