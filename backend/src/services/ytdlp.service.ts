@@ -181,6 +181,22 @@ export class YtDlpService {
   }
 
   async init() {
+    // Log the installed yt-dlp version for deployment diagnostics.
+    try {
+      const result = await this.runner.run(
+        this.o.binary,
+        ['--version'],
+        { timeoutMs: 15_000 }
+      );
+
+      console.log(
+        `[diagnostics] yt-dlp version: ${result.stdout.trim()}`
+      );
+    } catch (error) {
+      console.error('[diagnostics] Unable to detect yt-dlp version:', error);
+    }
+
+    await fs.mkdir(this.o.tmpDir, { recursive: true, mode: 0o700 });
     await fs.mkdir(this.o.tmpDir, { recursive: true, mode: 0o700 });
     await sweepStale(this.o.tmpDir, 60 * 60_000);
     this.sweeper = setInterval(() => void sweepStale(this.o.tmpDir, 60 * 60_000), 10 * 60_000);
