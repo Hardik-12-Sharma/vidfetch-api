@@ -5,7 +5,7 @@ import type { DownloadedFile, ProgressReporter } from './ytdlp.service.js';
 export type JobStatus = 'preparing' | 'downloading' | 'merging' | 'ready' | 'error';
 export interface JobView { status: JobStatus; percent: number; message?: string }
 
-interface Job extends JobView { file?: DownloadedFile; expires: number; ac: AbortController }
+interface Job extends JobView { file?: DownloadedFile; expires: number; ac: AbortController; cleanup: (f: DownloadedFile) => Promise<unknown> }
 
 const ID_RE = /^[a-f0-9]{32}$/;
 const NEVER = Number.MAX_SAFE_INTEGER;
@@ -23,10 +23,13 @@ export class JobService {
     this.timer.unref();
   }
 
-  start(run: (report: ProgressReporter, signal: AbortSignal) => Promise<DownloadedFile>): string {
+  start(
+    run: (report: ProgressReporter, signal: AbortSignal) => Promise<DownloadedFile>,
+    cleanup: (f: DownloadedFile) => Promise<unknown> = this.cleanup,
+  ): string {
     if (this.jobs.size >= this.maxJobs) throw new ApiError(503, 'Server is busy. Please try again in a minute.');
     const id = randomBytes(16).toString('hex');
-    const job: Job = { status: 'preparing', percent: 0, expires: Date.now() + this.ttlMs, ac: new AbortController() };
+    const job: Job = { status: 'preparing', percent: 0, expires: Date.now() + this.ttlMs, ac: new AbortController(), cleanup };
     this.jobs.set(id, job);
 
     const report: ProgressReporter = (p) => {
@@ -36,7 +39,7 @@ export class JobService {
     };
     run(report, job.ac.signal).then(
       async (file) => {
-        if (this.jobs.get(id) !== job) { await this.cleanup(file); return; }   // swept while it was running
+        if (this.jobs.get(id) !== job) { await job.cleanup(file); return; }   // swept while it was running
         job.file = file; job.status = 'ready'; job.percent = 100; job.expires = Date.now() + this.ttlMs;
       },
       (e: unknown) => {
@@ -79,7 +82,7 @@ export class JobService {
       if (job.expires > now) continue;
       this.jobs.delete(id);
       job.ac.abort();
-      if (job.file) await this.cleanup(job.file);
+      if (job.file) await job.cleanup(job.file);
     }
   }
 
@@ -87,6 +90,6 @@ export class JobService {
     clearInterval(this.timer);
     const all = [...this.jobs.values()];
     this.jobs.clear();
-    for (const job of all) { job.ac.abort(); if (job.file) await this.cleanup(job.file); }
+    for (const job of all) { job.ac.abort(); if (job.file) await job.cleanup(job.file); }
   }
 }

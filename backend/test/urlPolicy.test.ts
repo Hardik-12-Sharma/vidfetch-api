@@ -8,7 +8,7 @@ describe('isAllowedUrl', () => {
     'https://www.instagram.com/reel/Cabc123_-x/', 'https://instagram.com/p/abc/', 'https://www.instagram.com/tv/abc',
     'https://www.instagram.com/stories/some.user/1234567890/', 'https://m.instagram.com/reels/abc/?igsh=xyz%3D',
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://youtube.com/watch?v=dQw4w9WgXcQ&t=10s',
-    'https://m.youtube.com/shorts/dQw4w9WgXcQ', 'https://youtu.be/dQw4w9WgXcQ?si=abc',
+    'https://m.youtube.com/shorts/dQw4w9WgXcQ', 'https://music.youtube.com/watch?v=dQw4w9WgXcQ', 'https://youtu.be/dQw4w9WgXcQ?si=abc',
     'https://www.facebook.com/reel/123456789012345', 'https://www.facebook.com/watch/?v=123456789', 'https://m.facebook.com/watch?v=123456789',
     'https://www.facebook.com/somepage/videos/123456789/', 'https://www.facebook.com/share/v/1AbCdEf/', 'https://www.facebook.com/share/r/1AbCdEf/', 'https://fb.watch/abcDEF_1/',
     'https://www.facebook.com/watch?v=123456789',

@@ -1,7 +1,7 @@
 // Ported 1:1 from YtDlpService.ALLOWED_URL. Only https links to these exact YouTube/Instagram
 // paths are accepted, so arbitrary hosts (SSRF) and non-https schemes can never reach yt-dlp.
 const ALLOWED_URL = new RegExp(
-  '^https://(?:www\\.|m\\.)?(?:' +
+  '^https://(?:www\\.|m\\.|music\\.)?(?:' +
     'instagram\\.com/(?:reel|reels|p|tv)/[A-Za-z0-9_-]+/?' +
     '|instagram\\.com/stories/[A-Za-z0-9_.]+/[0-9]+/?' +
     '|youtube\\.com/watch\\?v=[A-Za-z0-9_-]{11}' +

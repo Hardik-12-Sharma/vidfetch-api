@@ -7,6 +7,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { PremiumService } from '../src/services/premium.service.js';
 import type { DownloadedFile, MediaInfo, YtDlpService } from '../src/services/ytdlp.service.js';
+import type { SnapAnyService } from '../src/services/snapany.service.js';
 import { ApiError } from '../src/utils/apiError.js';
 import { isAllowedUrl } from '../src/utils/urlPolicy.js';
 
@@ -22,6 +23,20 @@ class FakeYtDlp {
   private async file(ext: string): Promise<DownloadedFile> {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf-app-')); const p = path.join(dir, `media.${ext}`);
     fs.writeFileSync(p, 'FILEBYTES'); return { path: p, dir, ext };
+  }
+  async download(u: string, q: number) { this.lastDownload = ['video', u, q]; return this.file('mp4'); }
+  async downloadAudio(u: string, f: string) { this.lastDownload = ['audio', u, f]; return this.file(f); }
+  async cleanup(f: DownloadedFile) { this.cleaned.push(f); fs.rmSync(f.dir, { recursive: true, force: true }); }
+}
+
+class FakeSnapAny {
+  cleaned: DownloadedFile[] = []; lastDownload: unknown[] = [];
+  isAllowed = isAllowedUrl;
+  async init() {} async close() {}
+  async fetchInfo(_u: string) { return { ...INFO, title: 'SnapAny Clip', qualities: [{ quality: 720, size: 25 }, { quality: 1080, size: 50 }] }; }
+  private async file(ext: string): Promise<DownloadedFile> {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vf-snapany-')); const p = path.join(dir, `media.${ext}`);
+    fs.writeFileSync(p, 'SNAPANYBYTES'); return { path: p, dir, ext };
   }
   async download(u: string, q: number) { this.lastDownload = ['video', u, q]; return this.file('mp4'); }
   async downloadAudio(u: string, f: string) { this.lastDownload = ['audio', u, f]; return this.file(f); }
@@ -77,6 +92,30 @@ describe('POST/GET /api/media/info', () => {
     const { ytdlp } = await setup(); ytdlp.fail = new ApiError(502, 'This content is private.');
     const r = await app.inject({ method: 'POST', url: `/api/media/info?url=${encodeURIComponent(YT)}` });
     expect(r.statusCode).toBe(502); expect(r.json()).toEqual({ success: false, message: 'This content is private.' });
+  });
+});
+
+describe('SnapAny routing', () => {
+  it('uses SnapAny for YouTube info and direct downloads when configured', async () => {
+    const ytdlp = new FakeYtDlp();
+    const snapany = new FakeSnapAny();
+    const premium = new PremiumService({ keyId: 'rzp_test_AbCdEfGh123', keySecret: KEY_SECRET, tokenSecret: 'x'.repeat(40), pricePaise: 1900, days: 30 });
+    app = await buildApp(loadConfig({ NODE_ENV: 'test', DATA_DIR: os.tmpdir() } as any), {
+      ytdlp: ytdlp as unknown as YtDlpService, snapany: snapany as unknown as SnapAnyService, premium,
+    });
+
+    const info = await app.inject({ method: 'POST', url: `/api/media/info?url=${encodeURIComponent(YT)}` });
+    expect(info.statusCode).toBe(200);
+    expect(info.json().title).toBe('SnapAny Clip');
+    expect(info.json().formats.map((f: { value: number }) => f.value)).toEqual([720, 1080]);
+
+    const download = await app.inject(`/api/media/download?url=${encodeURIComponent(YT)}&quality=720p`);
+    expect(download.statusCode).toBe(200);
+    expect(download.body).toBe('SNAPANYBYTES');
+    expect(snapany.lastDownload).toEqual(['video', YT, 720]);
+    expect(ytdlp.lastDownload).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(snapany.cleaned).toHaveLength(1);
   });
 });
 

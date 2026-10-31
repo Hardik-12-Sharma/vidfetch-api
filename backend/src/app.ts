@@ -11,8 +11,9 @@ import { premiumRoutes } from './routes/premium.routes.js';
 import { JobService } from './services/jobs.service.js';
 import { PremiumService } from './services/premium.service.js';
 import { YtDlpService } from './services/ytdlp.service.js';
+import { SnapAnyService } from './services/snapany.service.js';
 
-export interface AppDeps { ytdlp?: YtDlpService; premium?: PremiumService }
+export interface AppDeps { ytdlp?: YtDlpService; snapany?: SnapAnyService; premium?: PremiumService }
 
 export async function buildApp(config: Config, deps: AppDeps = {}) {
   const app = Fastify({
@@ -40,21 +41,28 @@ export async function buildApp(config: Config, deps: AppDeps = {}) {
   const ytdlp = deps.ytdlp ?? new YtDlpService({
     binary: config.YTDLP_PATH, ffmpegLocation: config.YTDLP_FFMPEG_LOCATION, maxConcurrent: config.YTDLP_MAX_CONCURRENT,
     maxFilesize: config.YTDLP_MAX_FILESIZE, tmpDir: config.TMP_DIR,
-    ytClients: config.YTDLP_YT_CLIENTS, infoClients: config.YTDLP_INFO_CLIENTS, cacheDir: config.YTDLP_CACHE_DIR, warmup: config.YTDLP_WARMUP,
+    ytClients: config.YTDLP_YT_CLIENTS, infoClients: config.YTDLP_INFO_CLIENTS, cacheDir: config.YTDLP_CACHE_DIR,
+    // SnapAny handles YouTube when configured, so don't warm up yt-dlp against YouTube on every boot.
+    warmup: config.SNAPANY_API_KEY ? false : config.YTDLP_WARMUP,
     reuseInfo: config.YTDLP_REUSE_INFO, aria2c: config.YTDLP_ARIA2C,
     cookiesFile: config.YTDLP_COOKIES_FILE, cookiesFromBrowser: config.YTDLP_COOKIES_FROM_BROWSER,
   });
+  const snapany = deps.snapany ?? (config.SNAPANY_API_KEY ? new SnapAnyService({
+    apiKey: config.SNAPANY_API_KEY, tmpDir: config.TMP_DIR, maxFilesize: config.YTDLP_MAX_FILESIZE,
+    maxConcurrent: config.YTDLP_MAX_CONCURRENT, ffmpegBinary: config.YTDLP_FFMPEG_LOCATION || 'ffmpeg',
+  }) : undefined);
   const premium = deps.premium ?? new PremiumService({
     keyId: config.RAZORPAY_KEY_ID, keySecret: config.RAZORPAY_KEY_SECRET, tokenSecret: config.PREMIUM_TOKEN_SECRET,
     pricePaise: config.PREMIUM_PRICE_PAISE, days: config.PREMIUM_DAYS, storePath: path.join(config.DATA_DIR, 'premium-payments.json'),
   });
   await ytdlp.init();
+  await snapany?.init();
   await premium.init();
   const jobs = new JobService((f) => ytdlp.cleanup(f));
-  app.addHook('onClose', async () => { await jobs.close(); await ytdlp.close(); });
+  app.addHook('onClose', async () => { await jobs.close(); await snapany?.close(); await ytdlp.close(); });
 
   app.get('/api/health', async () => ({ success: true, status: 'ok' }));
-  mediaRoutes(app, createMediaController({ ytdlp, premium, jobs, freeMaxQuality: config.FREE_MAX_QUALITY }));
+  mediaRoutes(app, createMediaController({ ytdlp, snapany, premium, jobs, freeMaxQuality: config.FREE_MAX_QUALITY }));
   premiumRoutes(app, createPremiumController(premium));
   return app;
 }

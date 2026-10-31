@@ -22,6 +22,8 @@ const Env = z.object({
   YTDLP_ARIA2C: bool,
   YTDLP_COOKIES_FILE: z.string().optional().transform((v) => v || undefined),
   YTDLP_COOKIES_FROM_BROWSER: z.string().regex(/^[a-z0-9_.:+ \/-]*$/i, 'e.g. chrome or firefox').optional().transform((v) => v || undefined),
+  // Optional managed YouTube extraction provider. When configured, YouTube uses SnapAny; other sites keep yt-dlp.
+  SNAPANY_API_KEY: z.string().trim().optional().transform((v) => v || undefined),
   YTDLP_MAX_CONCURRENT: z.coerce.number().int().min(1).max(32).default(3),
   YTDLP_MAX_FILESIZE: z.string().regex(/^\d+[KMGkmg]?$/, 'e.g. 500M or 2G').default('2G'),
   TMP_DIR: z.string().default(path.join(os.tmpdir(), 'vidfetch')),
