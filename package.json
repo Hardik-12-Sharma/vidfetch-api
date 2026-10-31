@@ -1,0 +1,17 @@
+{
+  "name": "vidfetch",
+  "private": true,
+  "version": "1.0.0",
+  "description": "VidFetch: Next.js frontend (port 3000) + Fastify backend (port 4000)",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "start": "concurrently -n api,web \"npm run start --prefix backend\" \"npm run start --prefix frontend\"",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "test": "npm test --prefix backend && npm test --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}
