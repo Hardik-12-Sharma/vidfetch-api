@@ -371,7 +371,7 @@ export class YtDlpService {
     if (platform === 'youtube') {
       a.push(
         '--extractor-args',
-        `youtube:player_client=${clients || this.o.ytClients || 'default'};skip=translated_subs`
+        `youtube:skip=translated_subs`
       );
     } return a;
   }
@@ -381,3 +381,6 @@ export class YtDlpService {
     if (r.timedOut) throw new ApiError(504, 'Timed out while fetching the media.');
   }
 }
+
+
+
