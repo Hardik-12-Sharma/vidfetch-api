@@ -320,10 +320,14 @@ export class YtDlpService {
       const workDir: string = await fs.mkdtemp(path.join(this.o.tmpDir, 'dl-'));
       dir = workDir;
       this.dirs.add(workDir);
-      const common = [...this.baseArgs(platform), '--playlist-items', '1', '--max-filesize', this.o.maxFilesize, '-N', '8',
-      ...(this.o.aria2c
-        ? ['--downloader', 'aria2c', '--downloader', 'dash,m3u8:native', '--downloader-args', 'aria2c:-c -j 3 -x 16 -s 16 -k 1M']
-        : ['--http-chunk-size', '10M']),
+      const common = [
+        ...this.baseArgs(platform, this.o.ytClients),
+        '--playlist-items', '1',
+        '--max-filesize', this.o.maxFilesize,
+        '-N', '8',
+        ...(this.o.aria2c
+          ? ['--downloader', 'aria2c', '--downloader', 'dash,m3u8:native', '--downloader-args', 'aria2c:-c -j 3 -x 16 -s 16 -k 1M']
+          : ['--http-chunk-size', '10M']),
         '--retries', '3', '--fragment-retries', '3', '--no-part', '--no-mtime'];
       const outArgs = ['-o', path.join(workDir, 'media.%(ext)s')];
       const runOpts = { timeoutMs: this.o.downloadTimeoutMs ?? 300_000, signal };
